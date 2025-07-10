@@ -15,4 +15,6 @@ conda activate mchatbot
 
 ###Requirements
 
-
+```bash
+pip install -r requirements.txt
+```
