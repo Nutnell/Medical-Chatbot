@@ -3,3 +3,5 @@ sentence-transformers
 pinecone
 langchain
 flask
+
+-e .
