@@ -17,4 +17,6 @@ conda activate mchatbot
 
 ```bash
 pip install -r requirements.txt
+pip install pymupdf
+pip install -U langchain community
 ```
