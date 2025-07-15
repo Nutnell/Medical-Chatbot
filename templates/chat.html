@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Chatbot Assistant</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh; /* Make body fill viewport height */
+            width: 100vw; /* Make body fill viewport width */
+            background-color: #f0f2f5; /* Light gray background */
+            color: #333;
+            display: flex; /* Use flexbox for main layout */
+            justify-content: center; /* Center horizontally */
+            align-items: center; /* Center vertically */
+            overflow: hidden; /* Prevent body scroll if content overflows */
+        }
+        /* Custom loading dots animation for typing indicator */
+        .loading-dots span {
+            animation: blink 1s infinite;
+        }
+        .loading-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .loading-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
+        }
+
+        /* Styling for the main chatbot container */
+        #medical-chatbot-container {
+            display: flex; /* Use flexbox for the main layout */
+            width: 95%; /* Take most of the width */
+            max-width: 1200px; /* Max width for the entire layout */
+            height: 95vh; /* Take most of the height */
+            max-height: 900px; /* Max height for the entire layout */
+            background-color: #fff;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); /* shadow-2xl */
+            border: 1px solid #e5e7eb; /* border border-gray-200 */
+            overflow: hidden; /* Ensure content stays within bounds */
+        }
+
+        /* Sidebar styling */
+        #conversations-sidebar {
+            width: 100px; /* Initial collapsed width (only fixed area visible) */
+            flex-shrink: 0; /* Prevent sidebar from shrinking */
+            background-color: #f8fafc; /* Light blue-gray for sidebar */
+            border-right: 1px solid #e2e8f0; /* Border to separate from chat */
+            padding: 0;
+            display: flex; /* Arrange fixed area and sliding content horizontally */
+            flex-direction: row;
+            overflow: hidden; /* Hide overflowing content */
+            /* Transition for width will be managed by JS for precise control */
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        /* Fixed area with icons - always visible */
+        .sidebar-fixed-area {
+            width: 100px; /* The "peek" width */
+            flex-shrink: 0; /* Ensures it maintains its width */
+            background-color: #1e40af; /* Darker blue for the fixed icon strip */
+            color: white; /* White icons for contrast */
+            display: flex;
+            flex-direction: column; /* Stack icons vertically */
+            align-items: center;
+            padding-top: 1rem; /* Space for icons at top */
+            position: relative;
+            transition: background-color 0.3s ease-in-out; /* Keep this for color change */
+        }
+
+        /* Sliding content area */
+        .sidebar-sliding-content {
+            width: 150px; /* The width of the sliding content */
+            flex-shrink: 0; /* Ensures it maintains its width */
+            background-color: #f8fafc; /* Match sidebar background */
+            padding: 1rem;
+            opacity: 0; /* Initially hidden */
+            pointer-events: none; /* Disable interactions when hidden */
+            /* Transition for opacity will be managed by JS for precise control */
+        }
+
+        /* When sidebar IS fixed open (by click), the sidebar itself is fully visible */
+        #medical-chatbot-container.sidebar-open #conversations-sidebar {
+            width: 250px; /* Fixed open width */
+            /* Transition handled by JS */
+        }
+
+        /* When sidebar IS fixed open, the sliding content is visible */
+        #medical-chatbot-container.sidebar-open .sidebar-sliding-content {
+            opacity: 1;
+            pointer-events: auto;
+            /* Transition handled by JS */
+        }
+
+        /* Main chat UI takes remaining space */
+        #medical-chatbot-ui {
+            flex-grow: 1; /* Takes all available remaining space */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Ensure chat messages scroll correctly */
+            /* Removed margin-left properties as flexbox handles positioning */
+        }
+
+        /* Hide sidebar title by default, show when sidebar is expanded (either hover or fixed open) */
+        .sidebar-title-text {
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            margin-left: 0.5rem; /* Space from icons */
+            white-space: nowrap; /* Prevent wrapping */
+            overflow: hidden; /* Hide overflow if text is too long */
+            text-overflow: ellipsis; /* Add ellipsis if text is too long */
+        }
+
+        #medical-chatbot-container.sidebar-open .sidebar-title-text,
+        #medical-chatbot-container:not(.sidebar-open) #conversations-sidebar:hover .sidebar-title-text {
+            opacity: 1;
+        }
+
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px; /* Less padding on small screens */
+                align-items: flex-start; /* Align to top for scrolling */
+                overflow-y: auto; /* Allow body to scroll on small screens */
+            }
+            #medical-chatbot-container {
+                flex-direction: column; /* Stack sidebar and chat */
+                height: auto; /* Auto height on small screens */
+                max-height: calc(100vh - 20px); /* Max height for small screens */
+                width: 100%;
+            }
+            #conversations-sidebar {
+                position: static; /* Back to normal flow */
+                width: 100%; /* Full width sidebar on small screens */
+                height: 200px; /* Fixed height for sidebar on small screens */
+                border-bottom: 1px solid #e2e8f0;
+                border-right: none;
+                box-shadow: none; /* No shadow needed */
+                flex-direction: column; /* Stack fixed area and sliding content vertically */
+            }
+            .sidebar-fixed-area {
+                width: 100%; /* Full width on small screens */
+                height: 60px; /* Fixed height for the header icons */
+                flex-direction: row; /* Arrange icons horizontally */
+                justify-content: flex-start; /* Align icons to the start */
+                padding-left: 1rem;
+                padding-top: 0;
+            }
+            .sidebar-sliding-content {
+                width: 100%; /* Full width on small screens */
+                transform: translateX(0%); /* Always visible */
+                padding-top: 0; /* No extra padding needed */
+                opacity: 1; /* Always visible on small screens */
+                pointer-events: auto; /* Always enabled on small screens */
+            }
+            #medical-chatbot-ui {
+                width: 100%;
+                height: calc(100vh - 250px);
+            }
+            .sidebar-title-text {
+                opacity: 1; /* Always visible on small screens */
+                display: block; /* Ensure it's displayed */
+            }
+        }
+
+        /* Dark Mode Styles */
+        html.dark {
+            background-color: #1a202c; /* Dark background for body */
+            color: #e2e8f0; /* Light text color */
+        }
+
+        html.dark #medical-chatbot-container {
+            background-color: #2d3748; /* Darker background for main container */
+            border-color: #4a5568; /* Darker border */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+        }
+
+        html.dark #conversations-sidebar {
+            background-color: #28303d; /* Darker sidebar background */
+            border-color: #4a5568; /* Darker border */
+        }
+
+        html.dark .sidebar-fixed-area {
+            background-color: #1a365d; /* Even darker blue for fixed area in dark mode */
+            color: white; /* White icons for contrast in dark mode */
+        }
+
+        html.dark #medical-chatbot-ui .bg-blue-600 { /* Header */
+            background-color: #1e40af; /* Darker blue */
+        }
+
+        html.dark #medical-chatbot-messages { /* Messages background */
+            background-color: #2d3748; /* Darker gray */
+        }
+
+        html.dark .bg-gray-200 { /* Bot message bubbles */
+            background-color: #4a5568; /* Darker gray */
+            color: #e2e8f0; /* Light text color */
+        }
+
+        html.dark .text-gray-800 { /* General text */
+            color: #e2e8f0;
+        }
+
+        html.dark .bg-gray-100 { /* Suggestion buttons */
+            background-color: #4a5568;
+        }
+
+        html.dark .hover\:bg-gray-200:hover { /* Suggestion button hover */
+            background-color: #616e7f;
+        }
+
+        html.dark .text-gray-700 { /* Suggestion button text */
+            color: #cbd5e0;
+        }
+
+        html.dark .border-gray-100,
+        html.dark .border-gray-200 { /* Borders */
+            border-color: #4a5568;
+        }
+
+        html.dark .bg-white { /* Input area */
+            background-color: #2d3748;
+        }
+
+        html.dark .border-gray-300 { /* Input border */
+            border-color: #4a5568;
+        }
+
+        html.dark .placeholder-gray-500 { /* Input placeholder */
+            color: #a0aec0;
+        }
+    </style>
+</head>
+<body>
+    <div id="medical-chatbot-container">
+        <!-- Conversations Sidebar -->
+        <div id="conversations-sidebar" class="text-left">
+            <!-- Fixed area with icons -->
+            <div class="sidebar-fixed-area">
+                <div class="flex flex-col items-center space-y-4 pt-4">
+                    <!-- Hamburger Menu Icon -->
+                    <svg id="hamburger-menu-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" class="lucide lucide-menu cursor-pointer hover:text-blue-200">
+                        <line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/>
+                    </svg>
+                    <!-- Clipboard Icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" class="lucide lucide-clipboard-list cursor-pointer hover:text-blue-200">
+                        <rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 15h4"/>
+                    </svg>
+                    <!-- Stethoscope Icon SVG -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" class="lucide lucide-stethoscope"><path d="M20.5 2L22 3.5l-2 2L18.5 4l2-2Z"/><path d="M10.5 11.5L12 13l-3 3-1.5-1.5 3-3Z"/><path d="M12 22v-4"/><path d="M12 13V2"/><path d="M18 13v-2a2 2 0 0 0-2-2c-3.79 0-5.71 0-8 0a2 2 0 0 0-2 2v2"/></svg>
+                </div>
+            </div>
+
+            <!-- Sliding content area -->
+            <div class="sidebar-sliding-content">
+                <h2 class="text-xl font-bold text-blue-700 mb-4">Previous Chats</h2>
+                <button id="new-chat-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg mb-4 transition-colors">
+                    + Start New Chat
+                </button>
+                <div id="conversation-list" class="space-y-2">
+                    <!-- Conversation items will be rendered here by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- CHATBOT UI - Main chat area -->
+        <div id="medical-chatbot-ui">
+            <!-- Header -->
+            <div class="bg-blue-600 text-white p-4 flex justify-between items-center rounded-t-xl md:rounded-t-none">
+                <div class="flex items-center space-x-3">
+                    <!-- Stethoscope Icon SVG (kept here for main header branding) -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" class="lucide lucide-stethoscope"><path d="M20.5 2L22 3.5l-2 2L18.5 4l2-2Z"/><path d="M10.5 11.5L12 13l-3 3-1.5-1.5 3-3Z"/><path d="M12 22v-4"/><path d="M12 13V2"/><path d="M18 13v-2a2 2 0 0 0-2-2c-3.79 0-5.71 0-8 0a2 2 0 0 0-2 2v2"/></svg>
+                    <div>
+                        <h3 class="font-semibold text-lg">Medical Assistant</h3>
+                        <p class="text-sm opacity-90">Your health queries answered.</p>
+                    </div>
+                </div>
+                <!-- Theme Toggle Button -->
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-blue-700 transition-colors border border-white">
+                    <!-- Sun Icon (Light Mode) -->
+                    <svg id="sun-icon" class="w-6 h-6 text-white hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h1M2 12h1m15.364 6.364l-.707.707M6.343 6.343l-.707-.707m12.728 0l-.707-.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                    <!-- Moon Icon (Dark Mode) -->
+                    <svg id="moon-icon" class="w-6 h-6 text-white hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9 9 0 008.354-5.646z"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Messages -->
+            <div id="medical-chatbot-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-800">
+                <!-- Messages will be appended here by JavaScript -->
+            </div>
+
+            <!-- Quick Suggestions -->
+            <div class="px-4 pb-2 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
+                <div class="flex flex-wrap gap-2 pt-2">
+                    <button class="medical-chatbot-suggestion bg-blue-100 dark:bg-gray-700 hover:bg-blue-200 text-blue-800 dark:text-gray-300 text-xs px-3 py-2 rounded-full transition-colors">
+                        Cold symptoms?
+                    </button>
+                    <button class="medical-chatbot-suggestion bg-blue-100 dark:bg-gray-700 hover:bg-blue-200 text-blue-800 dark:text-gray-300 text-xs px-3 py-2 rounded-full transition-colors">
+                        Minor burn first aid?
+                    </button>
+                    <button class="medical-chatbot-suggestion bg-blue-100 dark:bg-gray-700 hover:bg-blue-200 text-blue-800 dark:text-gray-300 text-xs px-3 py-2 rounded-full transition-colors">
+                        Ibuprofen uses?
+                    </button>
+                    <button class="medical-chatbot-suggestion bg-blue-100 dark:bg-gray-700 hover:bg-blue-200 text-blue-800 dark:text-gray-300 text-xs px-3 py-2 rounded-full transition-colors">
+                        Flu vs. cold symptoms?
+                    </button>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900 rounded-b-xl md:rounded-b-none">
+                <div class="flex items-center space-x-2">
+                    <input
+                        type="text"
+                        id="medical-chatbot-input"
+                        placeholder="Ask a health question..."
+                        class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-full bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    />
+                    <button
+                        id="send-medical-message"
+                        class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full transition-colors flex items-center justify-center"
+                    >
+                        <!-- Send Icon SVG (corrected to face right/east) -->
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const backend_url = "http://127.0.0.1:5000/chat"; // Your Flask backend URL
+
+        // --- DOM Elements ---
+        const chatbotInput = document.getElementById('medical-chatbot-input');
+        const sendMessageButton = document.getElementById('send-medical-message');
+        const chatbotMessages = document.getElementById('medical-chatbot-messages');
+        const suggestionButtons = document.querySelectorAll('.medical-chatbot-suggestion');
+        const newChatButton = document.getElementById('new-chat-button');
+        const conversationList = document.getElementById('conversation-list');
+        const themeToggle = document.getElementById('theme-toggle');
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
+        const sidebar = document.getElementById('conversations-sidebar'); // Get sidebar element
+        const hamburgerMenuIcon = document.getElementById('hamburger-menu-icon'); // Get hamburger icon
+        const chatbotContainer = document.getElementById('medical-chatbot-container'); // Get main container
+
+
+        // --- Session Management ---
+        let currentSessionId; // Will store the ID of the currently active chat
+        let allConversations = []; // Stores a list of { id: '...', name: '...' }
+        let chatHistories = {}; // Stores messages for each session: { sessionId: [{sender, text}, ...] }
+        let isSidebarFixedOpen = false; // New state to track if sidebar is fixed open by click
+
+        // --- Persistence Functions (Frontend Local Storage) ---
+        function loadAllConversations() {
+            const storedConversations = localStorage.getItem('medicalChatbotAllConversations');
+            if (storedConversations) {
+                allConversations = JSON.parse(storedConversations);
+            } else {
+                allConversations = [];
+            }
+            // Load all chat histories
+            allConversations.forEach(conv => {
+                const history = localStorage.getItem(`medicalChatbotHistory_${conv.id}`);
+                if (history) {
+                    chatHistories[conv.id] = JSON.parse(history);
+                } else {
+                    chatHistories[conv.id] = []; // Initialize empty if not found
+                }
+            });
+        }
+
+        function saveAllConversations() {
+            localStorage.setItem('medicalChatbotAllConversations', JSON.stringify(allConversations));
+        }
+
+        function saveChatHistory(sessionId, messages) {
+            localStorage.setItem(`medicalChatbotHistory_${sessionId}`, JSON.stringify(messages));
+        }
+
+        function loadChatHistory(sessionId) {
+            return chatHistories[sessionId] || [];
+        }
+
+        // --- UI Functions ---
+        function appendMessage(sender, text) {
+            // Add message to current session's history
+            if (!chatHistories[currentSessionId]) {
+                chatHistories[currentSessionId] = [];
+            }
+            chatHistories[currentSessionId].push({ sender, text });
+            saveChatHistory(currentSessionId, chatHistories[currentSessionId]); // Save after appending
+
+            // Update conversation name if it's the first user message
+            if (sender === 'user' && chatHistories[currentSessionId].length === 2) { // 2 because 1st message is bot's welcome
+                const currentConvIndex = allConversations.findIndex(conv => conv.id === currentSessionId);
+                if (currentConvIndex !== -1) {
+                    let newName = text.substring(0, 30); // Take first 30 chars
+                    if (text.length > 30) {
+                        newName += '...';
+                    }
+                    allConversations[currentConvIndex].name = `Gemini: ${newName}`;
+                    saveAllConversations();
+                    renderConversationList(); // Re-render to show updated name
+                }
+            }
+
+
+            // Render message to UI
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('flex', 'items-start', 'space-x-2', 'max-w-[85%]');
+
+            let senderIconHtml = '';
+            let bubbleClasses = '';
+
+            if (sender === 'user') {
+                messageDiv.classList.add('justify-end', 'ml-auto');
+                bubbleClasses = 'bg-blue-500 text-white rounded-br-none';
+            } else { // sender === 'bot'
+                bubbleClasses = 'bg-gray-200 text-gray-800 rounded-bl-none';
+                senderIconHtml = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" class="mt-1 text-blue-600 flex-shrink-0 lucide lucide-stethoscope"><path d="M20.5 2L22 3.5l-2 2L18.5 4l2-2Z"/><path d="M10.5 11.5L12 13l-3 3-1.5-1.5 3-3Z"/><path d="M12 22v-4"/><path d="M12 13V2"/><path d="M18 13v-2a2 2 0 0 0-2-2c-3.79 0-5.71 0-8 0a2 2 0 0 0-2 2v2"/></svg>
+                `;
+            }
+
+            messageDiv.innerHTML = `
+                ${senderIconHtml}
+                <div class="${bubbleClasses} rounded-xl p-3 shadow-sm">
+                    <p class="text-sm break-words">${text}</p>
+                </div>
+            `;
+            chatbotMessages.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        let typingIndicatorDiv = null;
+
+        function showTypingIndicator() {
+            typingIndicatorDiv = document.createElement('div');
+            typingIndicatorDiv.classList.add('flex', 'items-start', 'space-x-2');
+            typingIndicatorDiv.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" class="mt-1 text-blue-600 flex-shrink-0 lucide lucide-stethoscope"><path d="M20.5 2L22 3.5l-2 2L18.5 4l2-2Z"/><path d="M10.5 11.5L12 13l-3 3-1.5-1.5 3-3Z"/><path d="M12 22v-4"/><path d="M12 13V2"/><path d="M18 13v-2a2 2 0 0 0-2-2c-3.79 0-5.71 0-8 0a2 2 0 0 0-2 2v2"/></svg>
+                <div class="bg-gray-200 rounded-xl rounded-bl-none p-3 shadow-sm">
+                    <p class="text-sm text-gray-800 loading-dots"><span>.</span><span>.</span><span>.</span></p>
+                </div>
+            `;
+            chatbotMessages.appendChild(typingIndicatorDiv);
+            scrollToBottom();
+        }
+
+        function removeTypingIndicator() {
+            if (typingIndicatorDiv) {
+                typingIndicatorDiv.remove();
+                typingIndicatorDiv = null;
+            }
+        }
+
+        function scrollToBottom() {
+            chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
+        }
+
+        function renderConversationList() {
+            conversationList.innerHTML = ''; // Clear existing list
+            allConversations.forEach(conv => {
+                const convItem = document.createElement('button');
+                convItem.classList.add(
+                    'w-full', 'text-left', 'py-2', 'px-3', 'rounded-lg', 'transition-colors',
+                    'focus:outline-none', 'focus:ring-2', 'focus:ring-blue-500', 'focus:ring-opacity-50'
+                );
+                if (conv.id === currentSessionId) {
+                    convItem.classList.add('bg-blue-200', 'text-blue-800', 'font-semibold');
+                } else {
+                    convItem.classList.add('bg-gray-100', 'hover:bg-gray-200', 'text-gray-700');
+                }
+                convItem.textContent = conv.name; // Use the stored name
+                convItem.dataset.sessionId = conv.id; // Store session ID as data attribute
+                convItem.addEventListener('click', () => switchChat(conv.id));
+                conversationList.appendChild(convItem);
+            });
+        }
+
+        function displayChatHistory(sessionId) {
+            chatbotMessages.innerHTML = ''; // Clear current messages
+            const history = loadChatHistory(sessionId);
+            history.forEach(msg => {
+                // Directly append messages without saving again
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('flex', 'items-start', 'space-x-2', 'max-w-[85%]');
+
+                let senderIconHtml = '';
+                let bubbleClasses = '';
+
+                if (msg.sender === 'user') {
+                    messageDiv.classList.add('justify-end', 'ml-auto');
+                    bubbleClasses = 'bg-blue-500 text-white rounded-br-none';
+                } else { // sender === 'bot'
+                    bubbleClasses = 'bg-gray-200 text-gray-800 rounded-bl-none';
+                    senderIconHtml = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" class="mt-1 text-blue-600 flex-shrink-0 lucide lucide-stethoscope"><path d="M20.5 2L22 3.5l-2 2L18.5 4l2-2Z"/><path d="M10.5 11.5L12 13l-3 3-1.5-1.5 3-3Z"/><path d="M12 22v-4"/><path d="M12 13V2"/><path d="M18 13v-2a2 2 0 0 0-2-2c-3.79 0-5.71 0-8 0a2 2 0 0 0-2 2v2"/></svg>
+                `;
+            }
+
+            messageDiv.innerHTML = `
+                ${senderIconHtml}
+                <div class="${bubbleClasses} rounded-xl p-3 shadow-sm">
+                    <p class="text-sm break-words">${msg.text}</p>
+                </div>
+            `;
+            chatbotMessages.appendChild(messageDiv);
+            scrollToBottom();
+        });
+    }
+
+    function startNewChat() {
+        const newId = `medical_user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        const chatNumber = allConversations.length + 1;
+        allConversations.push({ id: newId, name: `New Gemini Chat ${chatNumber}` }); // Default name
+        chatHistories[newId] = []; // Initialize empty history for new chat
+        saveAllConversations();
+        switchChat(newId, true); // Pass true to force welcome message
+    }
+
+    function switchChat(sessionIdToSwitchTo, forceWelcome = false) {
+        currentSessionId = sessionIdToSwitchTo;
+        localStorage.setItem('medicalChatbotCurrentSessionId', currentSessionId); // Save current active session
+        displayChatHistory(currentSessionId);
+        renderConversationList(); // Re-render to highlight active chat
+        chatbotInput.focus();
+
+        // If it's a brand new chat or forced, add the welcome message
+        if (forceWelcome || loadChatHistory(currentSessionId).length === 0) {
+            appendMessage('bot', 'Hello! I am your Medical Assistant. How can I help you today?');
+        }
+    }
+
+    // --- API Communication ---
+    async function sendMessage() {
+        const userMessage = chatbotInput.value.trim();
+
+        if (userMessage === '') {
+            return;
+        }
+
+        appendMessage('user', userMessage); // Append to current session's history and UI
+        chatbotInput.value = '';
+        showTypingIndicator();
+
+        try {
+            const response = await fetch(backend_url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: userMessage, session_id: currentSessionId }), // Use currentSessionId
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            appendMessage('bot', data.answer); // Append bot's response to current session's history and UI
+        } catch (error) {
+            console.error('Error sending message to medical chatbot backend:', error);
+            if (error.message.includes("429")) {
+                appendMessage('bot', 'The Medical Assistant is currently busy. Please try again in a moment.');
+            } else {
+                appendMessage('bot', 'Oops! The Medical Assistant is having trouble right now. Please try again later.');
+            }
+        } finally {
+            removeTypingIndicator();
+        }
+    }
+
+    // --- Theme Toggle Functions ---
+    function applyTheme(theme) {
+        if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+            sunIcon.classList.remove('hidden');
+            moonIcon.classList.add('hidden');
+        } else {
+            document.documentElement.classList.remove('dark');
+            moonIcon.classList.remove('hidden');
+            sunIcon.classList.add('hidden');
+        }
+        localStorage.setItem('theme', theme);
+    }
+
+    function toggleTheme() {
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme === 'dark') {
+            applyTheme('light');
+        } else {
+            applyTheme('dark');
+        }
+    }
+
+    // --- Sidebar Control Functions ---
+    function setSidebarFixedOpen(isOpen) {
+        isSidebarFixedOpen = isOpen;
+        localStorage.setItem('medicalChatbotSidebarFixedOpen', isOpen); // Persist state
+
+        if (isOpen) {
+            chatbotContainer.classList.add('sidebar-open');
+            // When fixed open, ensure the width is 250px and content is visible
+            sidebar.style.width = '250px';
+            sidebarSlidingContent.style.opacity = '1';
+            sidebarSlidingContent.style.pointerEvents = 'auto';
+            // Also ensure the transition is active for click
+            sidebar.style.transition = 'width 0.3s ease-in-out';
+            sidebarSlidingContent.style.transition = 'opacity 0.3s ease-in-out';
+
+        } else {
+            chatbotContainer.classList.remove('sidebar-open');
+            // When collapsing, ensure the width is 100px and content is hidden
+            sidebar.style.width = '100px';
+            sidebarSlidingContent.style.opacity = '0';
+            sidebarSlidingContent.style.pointerEvents = 'none';
+            // Also ensure the transition is active for click
+            sidebar.style.transition = 'width 0.3s ease-in-out';
+            sidebarSlidingContent.style.transition = 'opacity 0.3s ease-in-out';
+        }
+    }
+
+    function toggleSidebarFixed() {
+        setSidebarFixedOpen(!isSidebarFixedOpen);
+    }
+
+    // New JS for hover control
+    const sidebarFixedArea = document.querySelector('.sidebar-fixed-area');
+    const sidebarSlidingContent = document.querySelector('.sidebar-sliding-content');
+
+    // Listen on the entire sidebar for hover to expand
+    sidebar.addEventListener('mouseenter', () => {
+        if (!isSidebarFixedOpen) {
+            // Apply smooth transition for expansion
+            sidebar.style.transition = 'width 0.3s ease-in-out';
+            sidebarSlidingContent.style.transition = 'opacity 0.3s ease-in-out';
+
+            sidebar.style.width = '250px';
+            sidebarSlidingContent.style.opacity = '1';
+            sidebarSlidingContent.style.pointerEvents = 'auto';
+        }
+    });
+
+    // Listen on the entire sidebar for hover to collapse
+    sidebar.addEventListener('mouseleave', () => {
+        if (!isSidebarFixedOpen) {
+            // Apply smooth transition for collapse
+            sidebar.style.transition = 'width 0.3s ease-in-out'; /* Changed from 0s to 0.3s */
+            sidebarSlidingContent.style.transition = 'opacity 0.3s ease-in-out'; /* Changed from 0s to 0.3s */
+
+            sidebar.style.width = '100px';
+            sidebarSlidingContent.style.opacity = '0';
+            sidebarSlidingContent.style.pointerEvents = 'none';
+        }
+    });
+
+    // --- Event Listeners ---
+    sendMessageButton.addEventListener('click', sendMessage);
+
+    chatbotInput.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') {
+            sendMessage();
+        }
+    });
+
+    suggestionButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            chatbotInput.value = button.textContent.trim();
+            sendMessage();
+        });
+    });
+
+    newChatButton.addEventListener('click', startNewChat);
+    themeToggle.addEventListener('click', toggleTheme); // Event listener for theme toggle
+    hamburgerMenuIcon.addEventListener('click', toggleSidebarFixed); // Event listener for hamburger icon
+
+    // --- Initialization on Load ---
+    document.addEventListener('DOMContentLoaded', () => {
+        loadAllConversations();
+
+        const storedCurrentSessionId = localStorage.getItem('medicalChatbotCurrentSessionId');
+        const storedSidebarFixedOpen = localStorage.getItem('medicalChatbotSidebarFixedOpen') === 'true'; // Load boolean
+
+        // Initialize sidebar state without transition for initial load
+        if (storedSidebarFixedOpen) {
+            chatbotContainer.classList.add('sidebar-open');
+            sidebar.style.width = '250px';
+            sidebarSlidingContent.style.opacity = '1';
+            sidebarSlidingContent.style.pointerEvents = 'auto';
+        } else {
+            chatbotContainer.classList.remove('sidebar-open');
+            sidebar.style.width = '100px';
+            sidebarSlidingContent.style.opacity = '0';
+            sidebarSlidingContent.style.pointerEvents = 'none';
+        }
+
+        // Re-enable transitions after a short delay to allow initial state to set
+        setTimeout(() => {
+            sidebar.style.transition = 'width 0.3s ease-in-out';
+            sidebarSlidingContent.style.transition = 'opacity 0.3s ease-in-out';
+        }, 50);
+
+
+        if (allConversations.length === 0 || !storedCurrentSessionId || !chatHistories[storedCurrentSessionId]) {
+            // If no conversations, or no current session, or current session history is missing, start a new one
+            startNewChat();
+        } else {
+            // Otherwise, switch to the last active session
+            switchChat(storedCurrentSessionId);
+        }
+        chatbotInput.focus(); // Focus input field on load
+
+        // Apply saved theme or default to light
+        const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        applyTheme(savedTheme);
+    });
+</script>
+</body>
+</html>

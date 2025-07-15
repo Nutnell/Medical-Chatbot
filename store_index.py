@@ -29,9 +29,9 @@ embeddings = HuggingFaceEmbeddings(
 )
 
 embedding_dimension = 384
+
 # Initialize the Pinecone client
 pc = PineconeClient(api_key=PINECONE_API_KEY)
-
 # Define index name
 index_name = "medical-chatbot1"
 
