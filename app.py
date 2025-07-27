@@ -13,7 +13,7 @@ import boto3
 
 from meta_llm import MetaBedrockLLM
 
-app = Flask(__name__, static_folder='static', template_folder='templates')
+app = Flask(__name__, static_folder="static", template_folder="templates")
 CORS(app)
 
 load_dotenv()
@@ -45,7 +45,9 @@ try:
     print("✅ Pinecone client initialized.")
     if INDEX_NAME not in pc.list_indexes().names():
         raise RuntimeError(f"Pinecone index '{INDEX_NAME}' not found.")
-    docsearch = Pinecone.from_existing_index(index_name=INDEX_NAME, embedding=embeddings)
+    docsearch = Pinecone.from_existing_index(
+        index_name=INDEX_NAME, embedding=embeddings
+    )
     print(f"✅ Pinecone index '{INDEX_NAME}' loaded.")
 except Exception as e:
     print(f"❌ Pinecone error: {e}")
@@ -59,14 +61,16 @@ try:
         bedrock_client=bedrock_runtime,
         model_id="arn:aws:bedrock:us-east-2:004642588306:inference-profile/us.meta.llama3-1-8b-instruct-v1:0",
         temperature=0.8,
-        max_gen_len=256  # Slightly reduced to curb looping
+        max_gen_len=256,  # Slightly reduced to curb looping
     )
     print("✅ MetaBedrockLLM initialized.")
 except Exception as e:
     print(f"❌ Failed to initialize Meta LLM: {e}")
     llm = None
 
-PROMPT = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+PROMPT = PromptTemplate(
+    template=prompt_template, input_variables=["context", "question"]
+)
 chain_type_kwargs = {"prompt": PROMPT}
 
 qa_chain = None
@@ -83,9 +87,11 @@ if llm and docsearch:
     except Exception as e:
         print(f"❌ QA chain error: {e}")
 
+
 @app.route("/")
 def index():
     return render_template("chat.html")
+
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -100,7 +106,10 @@ def chat():
 
     if qa_chain is None:
         print("⚠️ QA chain not ready.")
-        return jsonify({"answer": "Medical Assistant is offline. Check backend logs."}), 503
+        return (
+            jsonify({"answer": "Medical Assistant is offline. Check backend logs."}),
+            503,
+        )
 
     try:
         result = qa_chain.invoke({"query": msg})
@@ -110,8 +119,10 @@ def chat():
     except Exception as e:
         print(f"❌ QA invocation error: {e}")
         import traceback
+
         traceback.print_exc()
         return jsonify({"answer": f"Internal error: {str(e)}"}), 500
 
+
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host="0.0.0.0", port=5000)
