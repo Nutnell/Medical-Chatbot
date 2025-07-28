@@ -38,8 +38,6 @@ charset-normalizer==3.4.2
 idna==3.10
 urllib3==2.5.0
 filelock==3.18.0
-huggingface-hub==0.33.2 # Often a transitive dependency for Langchain, even without local HF models
-tqdm==4.67.1 # Often a transitive dependency for progress bars
 dataclasses-json==0.6.7
 typing_extensions==4.14.1
 packaging==24.2
@@ -54,17 +52,14 @@ python-dateutil==2.9.0.post0
 tzdata==2025.2
 types-python-dateutil==2.9.0.20250708
 PyYAML==6.0.2
-pyaml==25.5.0
 decorator==5.2.1
 executing==2.2.0
 pure_eval==0.2.3
 stack-data==0.6.3
 colorama==0.4.6
 platformdirs==4.3.8
-psutil==7.0.0
 protobuf==5.29.5
 regex==2024.11.6
-rich==14.0.0
 tenacity==9.1.2 # Good for retrying API calls
 termcolor==3.1.0
 wrapt==1.17.2
